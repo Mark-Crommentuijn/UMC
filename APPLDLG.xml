@@ -2,7 +2,7 @@
 <Configuration ClassName="ThinApp">
   <Applications ClassName="ApplicationGroupDictionary">
     <XprotectclientII_Milestone_9.0_CI1021740 CI="1021740" Path="\\umcn.nl\apps\Thinapp" Description="Milestone application" Version="100">
-      <Links LinkName="Milestone" Linklocation="Ziekenhuis Informatie Systemen" Description="Milestone application" Executable="start.exe"></Links>
+      <Links LinkName="Milestone" Linklocation="Ziekenhuis Informatie Systemen" Description="Milestone application" Executable="XProtect Smart Client 2014 (64-bit).exe"></Links>
     </XprotectclientII_Milestone_9.0_CI1021740>
     <Rdcmanager_Microsoft_2.2_CI1016892 CI="1016892" Path="\\umcn.nl\apps\Thinapp" Description="Microsoft RDC Manager" Version="100">
       <Links LinkName="Microsoft RDC Manager" Linklocation="Utilities" Description="Microsoft RDC Manager" Executable="Remote Desktop Connection Manager.exe"></Links>

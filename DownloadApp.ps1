@@ -1,257 +1,140 @@
-Function LogWrite {
-    <#
-    .SYNOPSIS
-    Adds a line to log file.
-    .DESCRIPTION
-    This function can be used everywhere in the script to make a log entry in a logfile.
-	.PARAMETER logfile
-	The location where the logfile is located or will be created
-	.PARAMETER logstring
-	The text that is added to the end of the log file
-    .EXAMPLE
-    LogWrite -logfile "c:\temp\test.log" -logstring "`nlogentrycreated"
-    .NOTES
-    This is an internal script function and should typically not be called directly.
-    .LINK
-    #>
-   Param ([string]$logfile,[string]$logstring)
-        Add-content $logfile -value $logstring
-}
-
-Function Copy-ItemWithProgress {
 <#
-.SYNOPSIS
-RoboCopy with PowerShell progress.
-
-.DESCRIPTION
-Performs file copy with RoboCopy. Output from RoboCopy is captured,
-parsed, and returned as Powershell native status and progress.
-
-.PARAMETER RobocopyArgs
-List of arguments passed directly to Robocopy.
-Must not conflict with defaults: /ndl /TEE /Bytes /NC /nfl /Log
-
-.OUTPUTS
-Returns an object with the status of final copy.
-REMINDER: Any error level below 8 can be considered a success by RoboCopy.
-
-.EXAMPLE
-C:\PS> .\Copy-ItemWithProgress c:\Src d:\Dest
-
-Copy the contents of the c:\Src directory to a directory d:\Dest
-Without the /e or /mir switch, only files from the root of c:\src are copied.
-
-.EXAMPLE
-C:\PS> .\Copy-ItemWithProgress '"c:\Src Files"' d:\Dest /mir /xf *.log -Verbose
-
-Copy the contents of the 'c:\Name with Space' directory to a directory d:\Dest
-/mir and /XF parameters are passed to robocopy, and script is run verbose
-
-.LINK
-https://keithga.wordpress.com/2014/06/23/copy-itemwithprogress
-
-.NOTES
-By Keith S. Garner (KeithGa@KeithGa.com) - 6/23/2014
-With inspiration by Trevor Sullivan @pcgeek86
-
-#>
-
-[CmdletBinding()]
-param(
-	[Parameter(Mandatory = $true,ValueFromRemainingArguments=$true)] 
-	[string[]] $RobocopyArgs
-)
-
-$ScanLog  = "c:\temp\scanlog.txt"
-$RoboLog  = "c:\temp\robolog.txt"
-$ScanArgs = $RobocopyArgs + "/ndl /TEE /bytes /Log:$ScanLog /nfl /L".Split(" ")
-$RoboArgs = $RobocopyArgs + "/ndl /TEE /bytes /Log:$RoboLog /NC".Split(" ")
-
-# Launch Robocopy Processes
-write-verbose ("Robocopy Scan:`n" + ($ScanArgs -join " "))
-write-verbose ("Robocopy Full:`n" + ($RoboArgs -join " "))
-$ScanRun = start-process C:\windows\system32\robocopy.exe -PassThru -WindowStyle Hidden -ArgumentList $ScanArgs
-$RoboRun = start-process C:\windows\system32\robocopy.exe -PassThru -WindowStyle Hidden -ArgumentList $RoboArgs
-
-# Parse Robocopy "Scan" pass
-$ScanRun.WaitForExit()
-$LogData = get-content $ScanLog
-if ($ScanRun.ExitCode -ge 8)
-{
-	$LogData|out-string|Write-Error
-	throw "Robocopy $($ScanRun.ExitCode)"
-}
-#$FileSize = [regex]::Match($LogData[-4],".+:\s+(\d+)\s+(\d+)").Groups[2].Value
-# write-verbose ("Robocopy Bytes: $FileSize `n" +($LogData -join "`n"))
-
-<# Monitor Full RoboCopy
-while (!$RoboRun.HasExited)
-{
-	$LogData = get-content $RoboLog
-	$Files = $LogData -match "^\s*(\d+)\s+(\S+)"
-    $Percs = $logData -match "(.+?)%"
-    if ($Files -ne $Null )
-    {
-	    #start-sleep -Seconds 2
-        $copied = ($Files[0..($Files.Length-2)] | %{$_.Split("`t")[-2]} | Measure -sum).Sum
-	    if ($LogData[-1] -match "(100|\d?\d\.\d)\%")
-	    {
-		    #write-progress Copy -ParentID $RoboRun.ID -percentComplete $LogData[-1].Trim("% `t") $LogData[-1]
-            LogWrite -logfile $logfile -logstring $LogData[-1].Trim("% `t") $LogData[-1]
-		    $Copied += $Files[-1].Split("`t")[-2] /100 * ($LogData[-1].Trim("% `t"))
-	    }
-	    else
-	    {
-		    # logWrite -logfile $logfile -logstring "Complete"
-	    }
-	   LogWrite -logfile $logfile -logstring ($Copied/$FileSize*100) $Files[-1].Split("`t")[-1]
-       
-    }
-}
-#>
-while (!$RoboRun.HasExited)
-{
- # do nothing
-}
-# Parse full RoboCopy pass results, and cleanup
-(get-content $RoboLog)[-11..-2] | out-string | Write-Verbose
-[PSCustomObject]@{ ExitCode = $RoboRun.ExitCode }
-remove-item $RoboLog, $ScanLog
-exit 0
-}
-
-Function createBalloonNotification {
-     <#
-    .SYNOPSIS
-    Create a balloon notification
-    .DESCRIPTION
-    ""
-    .EXAMPLE
-    createBalloonNotification -BalloonTipIcon "Info" -BalloonTipText "De software wordt gedownload naar uw pc" -BalloonTipTitle "Software Download"
-    .NOTES
-    This is an internal script function and should typically not be called directly.
-    .LINK
-    #>
-	param (
-	 [parameter(Mandatory=$true)]
-	 [ValidateNotNullOrEmpty()]$BalloonTipIcon,
-	 [parameter(Mandatory=$true)]
-	 [ValidateNotNullOrEmpty()]$BalloonTipText,
-	 [parameter(Mandatory=$true)]
-	 [ValidateNotNullOrEmpty()]$BalloonTipTitle
-	)
-
-    [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
-
-    $objNotifyIcon = New-Object System.Windows.Forms.NotifyIcon 
-
-    $objNotifyIcon.Icon = [System.Drawing.SystemIcons]::Information
-    $objNotifyIcon.BalloonTipIcon = $BalloonTipIcon
-    $objNotifyIcon.BalloonTipText = $BalloonTipText 
-    $objNotifyIcon.BalloonTipTitle = $BalloonTipTitle
+ Script created by Mark Crommentuijn
  
-    $objNotifyIcon.Visible = $True 
-    $objNotifyIcon.ShowBalloonTip(100000)
+ This script downloads a thinapp package is that a user initiates through a link.
+ 12-15-2016 Created
+ 1-11-2017  POC approved
+ 
+#>
+
+# Script variables
+$scriptPath                 = split-path -parent $MyInvocation.MyCommand.Definition # Get the path where the script is executed from
+$error.clear()                # clear error variable
+$logfile                    = $env:SystemDrive + "\temp\ThinAppDownload.log" # the location where the logfile is created
+$myDate                     = Get-date -Format "dd-MM-yyyy" # Get the current data
+
+
+
+try {
+# Read the contents of the text files.    
+    [xml]$xdoc                  = Get-Content "$($scriptPath)\APPLDLG.xml" # Read te XML defenition file
+    $appNames                   = (Get-Content ($env:SystemDrive + "\temp\apps.txt")) # The apps that need to be copied. created by the user script
+    if ($appNames.count -gt 1) {$appNames = (Get-Content ($env:SystemDrive + "\temp\apps.txt"))[-1]}
+}
+catch {
+    $errorMessage = $_.Exception.message
+    $errorItem    = $_.Exception.ItemName
+    LogWrite -logfile $logfile -logstring "`nThe following error occurred:$($errorItem)`n with the following error message:`n$($errorMessage)"
 }
 
-Function Set-Owner {
-  Param ([parameter(Mandatory=$true)]
-		 [ValidateNotNullOrEmpty()]$fldpath,
-		 [parameter(Mandatory=$true)]
-		 [ValidateNotNullOrEmpty()]$owner)
-  $objAdmins               = New-Object System.Security.Principal.NTAccount($owner)
-  $acl                     = (Get-Item $fldpath).GetAccessControl("Access") 
-  $acl_isprotected         = $False
-  $acl_preserveinheritance = $True
-  $acl.SetAccessRuleProtection($acl_isprotected, $acl_preserveinheritance)
-  if($owner) {$acl.SetOwner($objAdmins)}
-  $run                     = Set-Acl -Path $fldpath -AclObject $acl
+# Import modules
+try {
+    Import-Module "$($scriptPath)\modules\logfile.psm1" -ErrorAction stop
+    Import-Module "$($scriptPath)\modules\robocopy.psm1" -ErrorAction stop
+    Import-Module "$($scriptPath)\modules\rights.psm1" -ErrorAction stop
+    Import-Module "$($scriptPath)\modules\filesystem.psm1" -ErrorAction stop
+}
+catch {
+    $errorMessage = $_.Exception.message
+    $errorItem    = $_.Exception.ItemName
+    LogWrite -logfile $logfile -logstring "`nThe following imports failed:$($errorItem)`n with the following error:`n$($errorMessage)"
+}
+
+# create first log entry After imports
+LogWrite -logfile $logfile -logstring "`nlogentrycreated on $($myDate).`nScript executed from:$($scriptPath)"
     
-
-}
-
-Function Set-Permissions {
-  Param ([parameter(Mandatory=$true)]
-		 [ValidateNotNullOrEmpty()]$fldpath,
-		 [parameter(Mandatory=$true)]
-		 [ValidateNotNullOrEmpty()]$right,
-		 [parameter(Mandatory=$true)]
-		 [ValidateNotNullOrEmpty()]$group)
-
-  $acl                     = (Get-Item $fldpath).GetAccessControl("Access") 
-  $acl_isprotected         = $False
-  $acl_preserveinheritance = $True
-  $acl.SetAccessRuleProtection($acl_isprotected, $acl_preserveinheritance)
-  $rule                    = New-Object System.Security.AccessControl.FileSystemAccessRule($group,$right,"ContainerInherit, ObjectInherit", "None", "Allow")
-  $add    = $acl.AddAccessRule($rule)
-  $run                     = Set-Acl -Path $fldpath -AclObject $acl
-}
-
-Function Remove-Permissions {
-  Param ([parameter(Mandatory=$true)]
-		 [ValidateNotNullOrEmpty()]$fldpath,
-		 [parameter(Mandatory=$true)]
-		 [ValidateNotNullOrEmpty()]$right,
-		 [parameter(Mandatory=$true)]
-		 [ValidateNotNullOrEmpty()]$group)
-
-  $acl                     = (Get-Item $fldpath).GetAccessControl("Access") 
-  $acl_isprotected         = $False
-  $acl_preserveinheritance = $True
-  $acl.SetAccessRuleProtection($acl_isprotected, $acl_preserveinheritance)
-  $rule                    = New-Object System.Security.AccessControl.FileSystemAccessRule($group,$right,"ContainerInherit, ObjectInherit", "None", "Allow")
-  $remove = $acl.RemoveAccessRule($rule)
-  $run                     = Set-Acl -Path $fldpath -AclObject $acl
-}
-
-Function CreateDir {
-	Param ([string]$fldpath)
-	
-	If (!(Test-Path $fldpath))
-	{
-		$create = New-Item $fldpath -Type Directory -Force
-	}
-}
-
-$error.clear() # clear error variable
-$logfile                   = $env:SystemDrive + "\temp\ThinAppDownload.log" 
-#$loggedOnUser          = (Get-wmiObject -class Win32_ComputerSystem).username
-#$username              = $loggedOnUser.Substring( $loggedOnUser.length -7, 7)
-$myDate                    = Get-date -Format "dd-MM-yyyy"
-#$appName               = get-content ($env:SystemDrive + "\temp\apps.txt")
-#$executableName        = "start.exe"
-#$from                  = $env:ThinAppStoreUNC + "\" + $appname
-#$from                  = "\\umcn.nl\apps\thinapp" + "\" + $appname
-#$from                  = "C:\temp"
-#$localPath             = $env:ThinAppStore + "\" + $appname
-#$startmenu             = $env:startmenu
-#$linkLocation              = "Ziekenhuis Informatie Systemen"
-#$linkName                  = "Rotem viewer"
-[xml]$xdoc                  = Get-Content "c:\temp\APPLDLG.xml"
-$appNames                   = (Get-Content ($env:SystemDrive + "\temp\apps.txt"))
-if ($appNames.count -gt 1) {$appNames           = (Get-Content ($env:SystemDrive + "\temp\apps.txt"))[-1]}
-
 Foreach ($appName in $appNames) {
-    LogWrite -logfile $logfile -logstring "`nlogentrycreated on $($myDate).`nApplication:$($appName)"
-    $xAppNode              = $xdoc.SelectSingleNode("//$($appname)") ; LogWrite -logfile $logfile -logstring "`nAppNode:$($xAppNode)"
-    $xLinksCollection      = $xdoc.SelectNodes("//$($appname)/Links"); LogWrite -logfile $logfile -logstring "`nLinks:$($xLinksCollection)"
-    $from                  = ($xAppNode.Path) + "\" + $appName ; LogWrite -logfile $logfile -logstring "`nSource:$($from)"
+    LogWrite -logfile $logfile -logstring "`nApplication: $($appName)"
+    $xAppNode               = $xdoc.SelectSingleNode("//$($appname)") ; LogWrite -logfile $logfile -logstring "`nAppNode: $($xAppNode.outerXml)"
+    $xLinksCollection       = $xdoc.SelectNodes("//$($appname)/Links"); LogWrite -logfile $logfile -logstring "`nLinks: $($xLinksCollection.outerXml)"
+    $from                   = ($xAppNode.Path) + "\" + $appName ; LogWrite -logfile $logfile -logstring "`nSource: $($from)"
     
-    If (Test-Path $from) {
-        
+    If (Test-Path $from) {      
         # 1. Create local folder
-        $localPath                  = "c:\thinapp" + "\" + $appName ; LogWrite -logfile $logfile -logstring "`nLocal install path:$($localPath)"
-        if (!(Test-Path $localPath)) {CreateDir -fldpath $localPath}
+        $localPath          = "c:\thinapp" + "\" + $appName ; LogWrite -logfile $logfile -logstring "`nLocal install path: $($localPath)"
+        if (!(Test-Path $localPath)) {CreateDir -fldpath $localPath;LogWrite -logfile $logfile -logstring "`nDirectory $($localPath) created."}
         # 2. Set the owner
-        if (!(Test-Path $localPath)) {Set-owner -owner "Administrators" -fldpath $localPath}
-        # 3. Set ReadAndExecute Permissions   to the application security group
-        Set-Permissions -group "APPLDLG_$($appname)" -right "ReadAndExecute" -fldpath $localPath
-        # Set-Permissions -group "umcn\z165211" -right "ReadAndExecute" -fldpath $localPath
-        # 4. Start Copy
+        if (!(Test-Path $localPath)) {Set-owner -owner "Administrators" -fldpath $localPath ; LogWrite -logfile $logfile -logstring "`nThe owner is set to Administrator."}
+        # 3. Set ReadAndExecute Permissions on the folder for the application security group
+        Add-Permissions -group "APPLDLG_$($appname)" -right "ReadAndExecute" -fldpath $localPath ; LogWrite -logfile $logfile -logstring "`nRead and execute rights are set for APPLDLG_$($appname)."
+        
 
     } #end if
-
+    # 4. Start Copy
     Get-ChildItem $localPath -Include * | Remove-Item -Recurse
-    Copy-ItemWithProgress "$($from) $($localPath) /E /R:1 /W:1 "
+    Copy-ItemWithProgress "$($from) $($localPath) /E /R:1 /W:1 " -appname $appName
     
 } #end foreach
+# SIG # Begin signature block
+# MIINKAYJKoZIhvcNAQcCoIINGTCCDRUCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
+# gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUQynsdzu86ku9PPe70WWWXFw0
+# 3HGgggpvMIIFGTCCBAGgAwIBAgIQDbnGEbOq/3RgewIGXryqxTANBgkqhkiG9w0B
+# AQsFADBlMQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYD
+# VQQLExB3d3cuZGlnaWNlcnQuY29tMSQwIgYDVQQDExtEaWdpQ2VydCBBc3N1cmVk
+# IElEIFJvb3QgQ0EwHhcNMTQxMTE4MTIwMDAwWhcNMjQxMTE4MTIwMDAwWjBtMQsw
+# CQYDVQQGEwJOTDEWMBQGA1UECBMNTm9vcmQtSG9sbGFuZDESMBAGA1UEBxMJQW1z
+# dGVyZGFtMQ8wDQYDVQQKEwZURVJFTkExITAfBgNVBAMTGFRFUkVOQSBDb2RlIFNp
+# Z25pbmcgQ0EgMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKri5yAv
+# rBCV+s0k5fig3/WirZ+8s8nh+B/EPuSWQW275wPwDBRxvaY4UbdQOac59kJt4lzE
+# nv+reNW9ZwMh6W4EzEbfxYcklJ/91iwFYYOTsvXhd2QqutVQ87bab9CLvH8+awDu
+# XLM0v1DA+MjwfVd+dApIr21ITItvil4jvnbLXYR4VjuIZ5vRiGCiCEQHiImmw/Lc
+# KuBzbMKbhCb3FD6LSqhpCPSTiegfaeu0KnUyCxmPfLMMuFrkRrRka8fQUJvwgLRP
+# NXGfIH9ZyFRm7M0zE98JMoUQAmFoPLSSJGC6oNK8tccHvfxQ6jRgCB8CoY8ftyz9
+# WqZJgLk5+llJ+RkCAwEAAaOCAbswggG3MBIGA1UdEwEB/wQIMAYBAf8CAQAwDgYD
+# VR0PAQH/BAQDAgGGMBMGA1UdJQQMMAoGCCsGAQUFBwMDMHkGCCsGAQUFBwEBBG0w
+# azAkBggrBgEFBQcwAYYYaHR0cDovL29jc3AuZGlnaWNlcnQuY29tMEMGCCsGAQUF
+# BzAChjdodHRwOi8vY2FjZXJ0cy5kaWdpY2VydC5jb20vRGlnaUNlcnRBc3N1cmVk
+# SURSb290Q0EuY3J0MIGBBgNVHR8EejB4MDqgOKA2hjRodHRwOi8vY3JsMy5kaWdp
+# Y2VydC5jb20vRGlnaUNlcnRBc3N1cmVkSURSb290Q0EuY3JsMDqgOKA2hjRodHRw
+# Oi8vY3JsNC5kaWdpY2VydC5jb20vRGlnaUNlcnRBc3N1cmVkSURSb290Q0EuY3Js
+# MD0GA1UdIAQ2MDQwMgYEVR0gADAqMCgGCCsGAQUFBwIBFhxodHRwczovL3d3dy5k
+# aWdpY2VydC5jb20vQ1BTMB0GA1UdDgQWBBQyCsEMwWg+V6gt+Xki5Y6c6USOMjAf
+# BgNVHSMEGDAWgBRF66Kv9JLLgjEtUYunpyGd823IDzANBgkqhkiG9w0BAQsFAAOC
+# AQEARK1QChmvA+HzpJ7KM8s0RJW06t34uUi15WqZw7cBjq7VxHMefVoI/Rm/IEzF
+# AbvIstsQydkrDd3OcTzcW665Z0vvvbBEmLhhKdyoenOyFL10PzBcw3nADPRW3LP+
+# 4Yl4RaWH6Fkoj0SLbQY/sTbEMO50bFTLxAPXb3ga42xDdhVGniJJWZdNON4bTNJ8
+# lhv8utfpehgwFyzVhoku0JoZPjXyxiu+UUlnSR1lIa9CIk4NTQ8aAumbgnbn/Iqw
+# e3VWTeo/kA+KJwRVMBN6U6H+9l6i9kk5VF8DyYtqNc4wqALgQBXtFZUQHQZj7++N
+# o5rhwVpgmjGEl7nwi5AqasvHIjCCBU4wggQ2oAMCAQICEAw5qb9loAcuUV4tl0kn
+# L2cwDQYJKoZIhvcNAQELBQAwbTELMAkGA1UEBhMCTkwxFjAUBgNVBAgTDU5vb3Jk
+# LUhvbGxhbmQxEjAQBgNVBAcTCUFtc3RlcmRhbTEPMA0GA1UEChMGVEVSRU5BMSEw
+# HwYDVQQDExhURVJFTkEgQ29kZSBTaWduaW5nIENBIDMwHhcNMTcwMTE3MDAwMDAw
+# WhcNMjAwMTIxMTIwMDAwWjCBmjELMAkGA1UEBhMCTkwxEzARBgNVBAgTCkdlbGRl
+# cmxhbmQxETAPBgNVBAcTCE5pam1lZ2VuMRMwEQYDVQQKEwpSYWRib3VkdW1jMQsw
+# CQYDVQQLEwJJTTETMBEGA1UEAxMKUmFkYm91ZHVtYzEsMCoGCSqGSIb3DQEJARYd
+# dGVhbXdlcmtwbGVrLmltQHJhZGJvdWR1bWMubmwwggEiMA0GCSqGSIb3DQEBAQUA
+# A4IBDwAwggEKAoIBAQCrrExnfSfby1C9NYte4mnQMs8VleGWvIToQclMkV3LyeU6
+# OscCovVHEPaGXPBt4qTVDErpKHDJ98oUQNHwcHJYv1v8Bqw3bEW5t5WsFCyWwE9I
+# JE1wECvZj9hx7V0tjnvrQxIBfJ5La3CByl+vgsRIJQRNig3ypunDH/37gfGRewzA
+# Z6AeakMbuFn6Fp4atg7xlB4SSy8WfzDqanVTte5ejw+7fKu4eOuJcBsQqVl2PnRe
+# DI/nQv6gwvOjsJxngFEyfZqsPzH6N41/zYPYDCpB8FC0MYUokNplOqmgIB8HHcVH
+# YmyjuGlPA+0/8CsXnk3h33Rq8iaoQomNx357J6BjAgMBAAGjggG6MIIBtjAfBgNV
+# HSMEGDAWgBQyCsEMwWg+V6gt+Xki5Y6c6USOMjAdBgNVHQ4EFgQUsnnXRAhWobGt
+# rHDmwXi+EpM5ckgwDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMD
+# MHsGA1UdHwR0MHIwN6A1oDOGMWh0dHA6Ly9jcmwzLmRpZ2ljZXJ0LmNvbS9URVJF
+# TkFDb2RlU2lnbmluZ0NBMy5jcmwwN6A1oDOGMWh0dHA6Ly9jcmw0LmRpZ2ljZXJ0
+# LmNvbS9URVJFTkFDb2RlU2lnbmluZ0NBMy5jcmwwTAYDVR0gBEUwQzA3BglghkgB
+# hv1sAwEwKjAoBggrBgEFBQcCARYcaHR0cHM6Ly93d3cuZGlnaWNlcnQuY29tL0NQ
+# UzAIBgZngQwBBAEwdgYIKwYBBQUHAQEEajBoMCQGCCsGAQUFBzABhhhodHRwOi8v
+# b2NzcC5kaWdpY2VydC5jb20wQAYIKwYBBQUHMAKGNGh0dHA6Ly9jYWNlcnRzLmRp
+# Z2ljZXJ0LmNvbS9URVJFTkFDb2RlU2lnbmluZ0NBMy5jcnQwDAYDVR0TAQH/BAIw
+# ADANBgkqhkiG9w0BAQsFAAOCAQEAX51AMgsM7HWtQ1zE2689Li0x/iVpbA0tJV0Y
+# 1iOv5Vn8BJBE2V14bI8LPreHpinw0nqgV9oIDh6fPSKT+5W/+dRponhw523bkgzD
+# LjeZhC+hxZKfZ1v4Wq9gkHvvgowDyw3sOdA6PS5QA3vbLbrLLJSrP35QtRsRgx4h
+# DzTnswJA5VTC/3fb74fsLPvNBMvQ+lQjoZIrgOPaceHSAuqcpzM7rnSkZd1kCVto
+# O+FJD4dYhi/ijeMVIXpbHLwNS+Rd50zmaTb9/adywJul+pdsIyRQX8WB83di2vjD
+# gOu8cyXL4yo+XlD1oJNSBsKhoyFxOVZ2TWWaU39h/WnRiWT48zGCAiMwggIfAgEB
+# MIGBMG0xCzAJBgNVBAYTAk5MMRYwFAYDVQQIEw1Ob29yZC1Ib2xsYW5kMRIwEAYD
+# VQQHEwlBbXN0ZXJkYW0xDzANBgNVBAoTBlRFUkVOQTEhMB8GA1UEAxMYVEVSRU5B
+# IENvZGUgU2lnbmluZyBDQSAzAhAMOam/ZaAHLlFeLZdJJy9nMAkGBSsOAwIaBQCg
+# eDAYBgorBgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEE
+# AYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMCMGCSqGSIb3DQEJ
+# BDEWBBRlDzl2daEG3glLbNdbHS9ObeDmAjANBgkqhkiG9w0BAQEFAASCAQA5peDc
+# WXeoxddqh1VjjIjQT0S2J3DvOpWyz7x4xyP322QGax/PXijTWIb49Ou/+snlNxhg
+# PPri7om7HcAwEWYi3fKVTfqD5/DTaLiPVV/Itz9/37yWaJz+0pw5Q3iyNiHimkbV
+# r5Ovd/2KUqRiiCPfe8V9QhGinAa+vI1Mj3WFm9lW1TbHX/iyEKvvM/WpfT6cN++k
+# r5vgHu2YFszopqPuDKAOf4xQLkIBQkxhq/kKPFRbiFiT5AYC7T7Le5urR+pJ7leE
+# s9yt/dZa3+nyyJv+krXsr4UF91DvF8N5zzNK/YmjMM/QdB38cZtd4lK4biRrDzef
+# N3WrWrdmCKgE41Mf
+# SIG # End signature block
